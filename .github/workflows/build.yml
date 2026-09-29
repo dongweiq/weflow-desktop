@@ -1,0 +1,65 @@
+name: Build
+
+on:
+  workflow_dispatch:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: read
+
+env:
+  CSC_IDENTITY_AUTO_DISCOVERY: "false"
+  ELECTRON_BUILDER_BINARIES_MIRROR: https://github.com/electron-userland/electron-builder-binaries/releases/download/
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: macos-latest
+            platform: mac
+            install_cmd: npm install --ignore-scripts
+            builder_args: --mac dmg zip --arm64
+          - os: windows-latest
+            platform: win
+            install_cmd: npm install
+            builder_args: --win nsis --x64
+          - os: ubuntu-latest
+            platform: linux
+            install_cmd: npm install
+            builder_args: --linux
+    runs-on: ${{ matrix.os }}
+
+    steps:
+      - name: Check out code
+        uses: actions/checkout@v5
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v5
+        with:
+          node-version: 24
+          cache: npm
+
+      - name: Install dependencies
+        run: ${{ matrix.install_cmd }}
+
+      - name: Type check
+        run: npm run typecheck
+
+      - name: Build frontend
+        run: |
+          node scripts/clean-dist-electron.cjs
+          npx vite build
+
+      - name: Package with electron-builder
+        run: npx electron-builder ${{ matrix.builder_args }} --publish never
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: weflow-${{ matrix.platform }}
+          path: release/
+          if-no-files-found: error
