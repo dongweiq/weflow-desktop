@@ -93,6 +93,7 @@ jobs:
         run: |
           set -euo pipefail
           TAG="${GITHUB_REF_NAME}"
+          REPO="${GITHUB_REPOSITORY}"
           files=()
           while IFS= read -r -d '' f; do
             files+=("$f")
@@ -102,10 +103,10 @@ jobs:
             exit 1
           fi
           echo "Found ${#files[@]} files to attach."
-          if gh release view "$TAG" >/dev/null 2>&1; then
+          if gh release view "$TAG" --repo "$REPO" >/dev/null 2>&1; then
             echo "Release $TAG already exists, uploading files..."
-            gh release upload "$TAG" "${files[@]}" --clobber
+            gh release upload "$TAG" "${files[@]}" --clobber --repo "$REPO"
           else
             echo "Creating release $TAG..."
-            gh release create "$TAG" --title "$TAG" --notes "Release $TAG" "${files[@]}"
+            gh release create "$TAG" --title "$TAG" --notes "Release $TAG" --repo "$REPO" "${files[@]}"
           fi
